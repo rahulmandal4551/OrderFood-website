@@ -1,0 +1,11 @@
+# For creation of New Database
+from orderfood import db
+db.create_all()
+
+
+# For manual access of Database 
+from orderfood.models import User, Food_item
+
+
+# For deleting all tables and record from existing Database
+db.drop_all()

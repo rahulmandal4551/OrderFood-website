@@ -1,0 +1,15 @@
+{% extends "layout.html" %}
+{% block content %}
+    {% for item in food_items %}
+        <article class="media content-section">
+          <div class="media-body">
+            <div>
+              <h2><a class="article-title" href="#">{{ item.title }}</a></h2>
+              <p class="article-content">{{ item.details }}</p>
+            </div>
+            <span class="mr-2">Price: ₹ {{ item.price }}</span>
+            <span class="text-muted ml-4"> Availability: {% if (item.availability > 0) %} Yes {% else %} No {% endif %} </span>
+          </div>
+        </article>
+    {% endfor %}
+{% endblock content %}
