@@ -6,6 +6,7 @@
             <div class="media-body">
                 <h2 class="account-heading">{{ current_user.username }}</h2>
                 <p class="text-secondary">{{ current_user.email }}</p>
+                <p class="text-secondary">{{ current_user.phone_no }}</p>
             </div>
         </div>
 
@@ -38,19 +39,6 @@
                     </div>
                 {% else %}
                     {{ form.username(class="form-control form-control-lg") }}
-                {% endif %}
-            </div>
-            <div class="form-group">
-                {{ form.email.label(class="form-control-label") }}
-                {% if form.email.errors %}
-                    {{ form.email(class='form-control form-control-lg is-invalid') }}
-                    <div class="invalid-feedback">
-                        {% for error in form.email.errors %}
-                            <span>{{ error }}</span>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    {{ form.email(class="form-control form-control-lg") }}
                 {% endif %}
             </div>
             <div class="form-group">

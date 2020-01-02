@@ -4,4 +4,17 @@ import os
 
 class Config:
     SECRET_KEY = 'secret' # Edit and Provide your own secret key
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///demo.db' # Edit and Provide your own database path
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///sample.db' # Edit and Provide your own database path
+
+    # Following are the values for sending emails using a Gmail account.
+    # If you use other email providers, you need to change these values
+    
+    # While sending Email using Gmail, you may get a Error (Google blocks less secure app that are trying to access Gmail)
+    # In that case Turn On 'Less secure app access' from the link: https://myaccount.google.com/lesssecureapps
+
+    MAIL_SERVER = 'smtp.gmail.com' # Enter the SMTP server address of your Email provider
+    MAIL_PORT = 587 # Enter the SMTP port of your Email provider
+    MAIL_USE_TLS = True # Use TLS security in your Email 
+
+    MAIL_USERNAME = 'example@gmail.com' # Enter the Username of your Email account
+    MAIL_PASSWORD = 'your password here' # Enter the Password of your Email account
