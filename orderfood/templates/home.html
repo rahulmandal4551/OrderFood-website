@@ -1,15 +1,27 @@
 {% extends "layout.html" %}
+
 {% block content %}
+  <form action="postmethod" method="POST" id="orderform" autocomplete="off">
     {% for item in food_items %}
         <article class="media content-section">
           <div class="media-body">
             <div>
-              <h2><a class="article-title" href="#">{{ item.title }}</a></h2>
+              <h2 class="article-title">{{ item.title }}</h2>
               <p class="article-content">{{ item.details }}</p>
             </div>
             <span class="mr-2">Price: ₹ {{ item.price }}</span>
-            <span class="text-muted ml-4"> Availability: {% if (item.availability > 0) %} Yes {% else %} No {% endif %} </span>
+            <span class="text-muted ml-4 mr-2"> Availability: {% if (item.availability > 0) %} Yes {% else %} No {% endif %} </span>
+            
+            {# checks if corresponding Quantity value is already present in order_json otherwise sets to zero #}
+            {% set quan = ordered_item_dict[item.id|string]|default('0') %}
+            
+            <label class="ml-4 form-control-label" for="qntid{{ item.id }}">Enter Quantity:</label>
+            <input class='' id="qntid{{ item.id }}" type="number" name="qntid{{ item.id }}" step="1" min="0" max="25" value="{{ quan }}" required>  
           </div>
         </article>
     {% endfor %}
-{% endblock content %}
+    <div class="form-group">
+      <input class="btn btn-outline-info" type="submit" value="Submit Order" >
+    </div>
+  </form>
+{% endblock %}

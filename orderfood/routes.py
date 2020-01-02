@@ -1,38 +1,56 @@
 import secrets
 import os
+import json
 from PIL import Image
-from flask import render_template, url_for, flash, redirect, request
+from flask import render_template, jsonify, url_for, flash, redirect, request
 from orderfood import app, db, bcrypt
 from orderfood.models import User, Food_item
 from orderfood.forms import RegistrationForm, LoginForm, UpdateAccountForm
 from flask_login import login_user, current_user, logout_user, login_required
 
-food_items = [
-    {
-        'Title' : 'Chicken Biriyani',
-        'Details' : 'Chicken Biriyani(Leg Piece with Egg) from your favourite Resturant',
-        'Price' : '₹ 100.00',
-        'isAvailable' : 'Available'
-    },
-    {
-        'Title' : 'Sattu Paratha',
-        'Details' : 'Paratha stuffed with sattu from your favourite Resturant',
-        'Price' : '₹ 10.00',
-        'isAvailable' : 'Available'
-    },
-    {
-        'Title' : 'Chilli Chicken',
-        'Details' : 'Chilli Chicken (8 pieces) from your favourite Resturant',
-        'Price' : '₹ 120.00',
-        'isAvailable' : 'Not Available'
-    }
-]
-
-
 @app.route('/')
 @app.route('/home')
 def home():
-    return render_template('home.html', food_items=Food_item.query.all())
+    ordered_item_dict = None
+    if current_user.is_authenticated:
+        ordered_item_dict = json.loads(current_user.order_json) if current_user.order_json else None
+    print("ordered_item_dict", ordered_item_dict)
+    return render_template('home.html', food_items=Food_item.query.all(), ordered_item_dict = ordered_item_dict )
+
+@app.route('/postmethod', methods = ['GET','POST'])
+def get_post_javascript_data():
+    p = "random"
+    if request.method == 'POST':
+        # jsdata = request.form['mydata']
+        jsdata = request.form.to_dict()
+        if not current_user.is_authenticated:
+            flash("Please log in to submit your Order", 'info')
+            return redirect(url_for('login'))
+
+        print(f"Incoming JSON data converted to Dict {jsdata}")
+        # print(type(jsdata))
+        # print("")
+        # orderDict = json.loads(jsdata)
+        # print(orderDict)
+        # return redirect(url_for('page'))
+        finalDict = {}
+        orderDict = jsdata
+        for i in orderDict.keys():
+            quantity = 0
+            try:
+                quantity = int(orderDict[i])
+            except:
+                quantity = int(float(orderDict[i]))
+            if quantity > 0:
+                finalDict[i.strip('qntid')] = quantity
+        print(finalDict)
+        finalOrderJSON = json.dumps(finalDict)
+        print(finalOrderJSON, type(finalOrderJSON))
+        current_user.order_json = finalOrderJSON if bool(finalDict) else None
+        db.session.commit()
+        flash("Your order has been updated!", 'success')
+        return redirect(url_for('account'))
+    # return render_template("home.html", food_items=Food_item.query.all())
 
 @app.route('/about')
 def about():
@@ -104,5 +122,11 @@ def account():
         form.username.data = current_user.username
         form.email.data = current_user.email
         form.address.data = current_user.address
+        
+        ordered_item_dict = None
+        try:
+            ordered_item_dict = json.loads(current_user.order_json)
+        except:
+            pass
     image_file = url_for('static', filename= f"profile_pics/{current_user.image_file}")
-    return render_template('account.html', title='Account', image_file=image_file, form=form)
+    return render_template('account.html', title='Account', image_file=image_file, form=form, ordered_item_dict=ordered_item_dict, food_items=Food_item.query.all())
