@@ -1,7 +1,10 @@
+from flask import redirect, url_for
 from datetime import datetime
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
-from orderfood import db, login_manager, app
-from flask_login import UserMixin
+from orderfood import db, login_manager, app, admin
+from flask_login import UserMixin, current_user
+from flask_admin import BaseView, expose
+from flask_admin.contrib.sqla import ModelView
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -70,3 +73,49 @@ class Not_Verified_User(db.Model):
 
     def __repr__(self):
         return f"Not_Verified_User('{self.username}', '{self.email}', '{self.phone_no}','{self.last_verification_email_time}', '{self.address}')"
+
+# Views for Flask-Admin Panel
+class MyModelView(ModelView):
+    column_display_pk = True
+
+    def is_accessible(self):
+        return (current_user.is_authenticated and current_user.administrator_access)
+    
+    def inaccessible_callback(self, name, **kwargs):
+        return redirect(url_for('home'))
+
+class UserModelView(ModelView):
+    column_searchable_list = ('username', 'email')
+    column_display_pk = True
+
+    def is_accessible(self):
+        return (current_user.is_authenticated and current_user.administrator_access)
+    
+    def inaccessible_callback(self, name, **kwargs):
+        return redirect(url_for('home'))
+
+class Food_itemModelView(ModelView):
+    column_searchable_list = ('title', 'details')
+    column_display_pk = True
+
+    def is_accessible(self):
+        return (current_user.is_authenticated and current_user.administrator_access)
+    
+    def inaccessible_callback(self, name, **kwargs):
+        return redirect(url_for('home'))
+
+class NotificationsView(BaseView):
+    def is_accessible(self):
+        return (current_user.is_authenticated and current_user.administrator_access)
+
+    def inaccessible_callback(self, name, **kwargs):
+        return redirect(url_for('home'))
+            
+    @expose('/')
+    def index(self):
+        return self.render('admin/notifs.html')
+
+admin.add_view(UserModelView(User, db.session))
+admin.add_view(Food_itemModelView(Food_item, db.session))
+admin.add_view(UserModelView(Not_Verified_User, db.session))
+admin.add_view(NotificationsView(name='Notifications', endpoint='notifs'))

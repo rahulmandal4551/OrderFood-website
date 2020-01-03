@@ -1,0 +1,12 @@
+{% extends 'admin/master.html' %}
+{% block head_css %}
+{{ super() }}
+{% endblock %}
+
+{% block body %}
+{{ super() }}
+<h1>Admin Notifications</h1>
+<p>Go to <a href="{{ url_for('home') }}">Home</a></p>
+<p>Go to <a href="{{ url_for('account') }}">Account</a></p>
+<p>Go to <a href="{{ url_for('logout') }}">Logout</a></p>
+{% endblock %}
