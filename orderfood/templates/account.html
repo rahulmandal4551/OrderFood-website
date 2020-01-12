@@ -1,4 +1,23 @@
 {% extends "layout.html" %}
+{% block jscontent %}
+<style>
+    table {
+      font-family: arial, sans-serif;
+      border-collapse: collapse;
+      width: 100%;
+    }
+    
+    td, th {
+      border: 1px solid #dddddd;
+      text-align: left;
+      padding: 8px;
+    }
+    
+    tr:nth-child(even) {
+      background-color: #f2f2f2;
+    }
+</style>
+{% endblock%}
 {% block content %}
     <div class="content-section">
         <div class="media">
@@ -13,13 +32,37 @@
         <div class="content-section mb-4">
             <h4 class="border-bottom mb-4">Order Details</h4>
             {% if ordered_item_dict %}
+                <p><b>Total Price: </b>{{ price }}</p>
                 {% for key, val in ordered_item_dict.items() %}
                     <p><b>{{ food_items[(key|int)-1].title }} :</b> {{ val }} </p>
                 {% endfor %}
                 <p class="text-secondary">Want to modify your Order? <a href="{{ url_for('home') }}">Click Here</a> </p>
-                <input class="btn btn-outline-info" type="button" value="Confirm Order" >
+                <a href="{{ url_for('payment_options') }}" class="btn btn-outline-info"> Go for Payment</a> 
             {% else %}
                 <p class="text-secondary">Currently your Order list is Empty!!! </p>
+                <p class="text-secondary">Want to Order something? <a href="{{ url_for('home') }}">Click Here</a> </p>
+            {% endif %}
+        </div>
+
+        <div class="content-section mb-4">
+            <h4 class="border-bottom mb-4">All Orders</h4>
+            {% if all_orders %}
+                <table>
+                    <tr>
+                        <th>Order Time</th>
+                        <th>Ordered Items</th>
+                        <th>Price</th>
+                    </tr>
+                    {% for i in all_orders %}
+                    <tr>
+                        <td>{{ i.date_ordered }}</td>
+                        <td>{{ i.order_details }}</td>
+                        <td><span> ₹{{ i.price }}</span></td>
+                    </tr>
+                {% endfor %}
+                </table> 
+            {% else %}
+                <p class="text-secondary">You haven't ordered anything yet!!! </p>
                 <p class="text-secondary">Want to Order something? <a href="{{ url_for('home') }}">Click Here</a> </p>
             {% endif %}
         </div>

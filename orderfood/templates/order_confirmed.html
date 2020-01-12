@@ -1,0 +1,11 @@
+{% extends "layout.html" %}
+{% block content %}
+    {% if price %}
+        <h1>Order Confirmed</h1>
+        <p>Your Order is Confirmed. For POD you have to pay ₹ {{ price }}.</p>
+        <p>Please wait while your Food is being prepared and delivered.</p>
+    {% else %}
+        <p class="text-secondary">Currently your Order list is Empty!!! </p>
+        <p class="text-secondary">Want to Order something? <a href="{{ url_for('home') }}">Click Here</a> </p>
+    {% endif %}
+{% endblock content %}

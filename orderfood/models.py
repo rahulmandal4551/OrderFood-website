@@ -20,8 +20,8 @@ class User(db.Model, UserMixin):
     address = db.Column(db.Text, nullable= False)
     order_json = db.Column(db.Text, default=None)
     administrator_access = db.Column(db.Boolean, nullable= False, default= False)
-    past_orders = db.Column(db.Text, default=None)
     date_registered = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    all_orders = db.relationship('Orders', backref='ordered_by', lazy=True)
 
     def get_reset_token(self, expires_sec=1800):
         s = Serializer(app.config['SECRET_KEY'], expires_sec)
@@ -37,17 +37,31 @@ class User(db.Model, UserMixin):
         return User.query.get(user_id)
 
     def __repr__(self):
-        return f"User('{self.username}', '{self.email}', '{self.phone_no}', '{self.image_file}', '{self.address}')"
+        return f"User('{self.username}', '{self.email}', '{self.phone_no}', '{self.address}')"
 
 class Food_item(db.Model):
     id = db.Column(db.Integer, primary_key= True)
     title = db.Column(db.String(200), nullable= False)
-    details = db.Column(db.Text)
+    details = db.Column(db.Text, default=None)
     availability = db.Column(db.Integer, nullable= False, default= 0)
     price = db.Column(db.Float, nullable= False, default= 0.0)
 
     def __repr__(self):
         return f"Food Item('{self.title}', '{self.price}', '{self.availability}')"
+
+class Orders(db.Model):
+    id = db.Column(db.Integer, primary_key= True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable= False)
+    order_json = db.Column(db.Text, default=None)
+    order_details = db.Column(db.Text, default=None) # for complete overview of order like- name, address of user,
+                                                    #  quantity and details of food items, total price, delivery info
+    is_completed = db.Column(db.Boolean, nullable= False, default= False)
+    price = db.Column(db.Float, nullable= False, default= 0.0)
+    date_ordered = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    remarks = db.Column(db.Text, default=None)
+
+    def __repr__(self):
+        return f"Order('{self.order_json}','{self.user_id}', '{self.price}','{self.date_ordered}', '{self.is_completed}')"
 
 class Not_Verified_User(db.Model):
     id = db.Column(db.Integer, primary_key= True)
@@ -72,7 +86,7 @@ class Not_Verified_User(db.Model):
         return Not_Verified_User.query.get(user_id)
 
     def __repr__(self):
-        return f"Not_Verified_User('{self.username}', '{self.email}', '{self.phone_no}','{self.last_verification_email_time}', '{self.address}')"
+        return f"Not Verified User('{self.username}', '{self.email}', '{self.phone_no}','{self.last_verification_email_time}', '{self.address}')"
 
 # Views for Flask-Admin Panel
 class MyModelView(ModelView):
@@ -104,6 +118,16 @@ class Food_itemModelView(ModelView):
     def inaccessible_callback(self, name, **kwargs):
         return redirect(url_for('home'))
 
+class OrderModelView(ModelView):
+    column_display_pk = True
+    column_searchable_list = ('user_id', 'date_ordered', 'order_details')
+
+    def is_accessible(self):
+        return (current_user.is_authenticated and current_user.administrator_access)
+    
+    def inaccessible_callback(self, name, **kwargs):
+        return redirect(url_for('home'))
+
 class NotificationsView(BaseView):
     def is_accessible(self):
         return (current_user.is_authenticated and current_user.administrator_access)
@@ -118,4 +142,5 @@ class NotificationsView(BaseView):
 admin.add_view(UserModelView(User, db.session))
 admin.add_view(Food_itemModelView(Food_item, db.session))
 admin.add_view(UserModelView(Not_Verified_User, db.session))
+admin.add_view(OrderModelView(Orders, db.session))
 admin.add_view(NotificationsView(name='Notifications', endpoint='notifs'))

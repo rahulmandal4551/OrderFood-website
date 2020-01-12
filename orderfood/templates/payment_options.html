@@ -1,0 +1,18 @@
+{% extends "layout.html" %}
+{% block content %}
+    <h1>Order Details</h1>
+    {% if ordered_item_dict %}
+        <p><b>Total Price: </b>₹ {{ price }}</p>
+        {% for key, val in ordered_item_dict.items() %}
+            <p><b>{{ food_items[(key|int)-1].title }} :</b> {{ val }} </p>
+        {% endfor %}
+        <p class="text-secondary">Want to modify your Order? <a href="{{ url_for('home') }}">Click Here</a> </p>
+    {% else %}
+        <p class="text-secondary">Currently your Order list is Empty!!! </p>
+        <p class="text-secondary">Want to Order something? <a href="{{ url_for('home') }}">Click Here</a> </p>
+    {% endif %}
+
+    <h1>Payment Options</h1>
+    <p>Currently we only accept pay-on-delivery Payment option. If you wished to pay online, we are sorry for your inconvenience.</p>
+    <a href="{{ url_for('order_confirmed') }}" class="btn btn-outline-info"> Confirm and Place Order</a> 
+{% endblock content %}

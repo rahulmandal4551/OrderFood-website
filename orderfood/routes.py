@@ -5,7 +5,7 @@ from datetime import datetime
 from PIL import Image
 from flask import render_template, jsonify, url_for, flash, redirect, request
 from orderfood import app, db, bcrypt, mail
-from orderfood.models import User, Food_item, Not_Verified_User
+from orderfood.models import User, Food_item, Not_Verified_User, Orders
 from orderfood.forms import RegistrationForm, LoginForm, UpdateAccountForm, RequestPasswordResetForm, ResetPasswordForm
 from flask_login import login_user, current_user, logout_user, login_required
 from flask_mail import Message
@@ -62,20 +62,6 @@ If yot did not made this request then simply ignore this email.
 '''
     mail.send(msg)
 
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if current_user.is_authenticated:
-        return redirect(url_for('home'))
-    form = RegistrationForm()
-    if form.validate_on_submit():
-        hashed_password = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
-        user = User(username=form.username.data, email=form.email.data, password=hashed_password, address=form.address.data, phone_no=form.phone_no.data, date_registered=datetime.utcnow())
-        db.session.add(user)
-        db.session.commit()
-        flash("Account created for {} ! You are now able to Log in".format(form.username.data), 'success')
-        return redirect(url_for('login'))
-    return render_template('register.html', form= form, title= 'Register')
-
 # @app.route('/register', methods=['GET', 'POST'])
 # def register():
 #     if current_user.is_authenticated:
@@ -83,13 +69,27 @@ def register():
 #     form = RegistrationForm()
 #     if form.validate_on_submit():
 #         hashed_password = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
-#         NVuser = Not_Verified_User(username=form.username.data, email=form.email.data, password=hashed_password, address=form.address.data, phone_no=form.phone_no.data, last_verification_email_time=datetime.utcnow())       
-#         db.session.add(NVuser)
+#         user = User(username=form.username.data, email=form.email.data, password=hashed_password, address=form.address.data, phone_no=form.phone_no.data, date_registered=datetime.utcnow())
+#         db.session.add(user)
 #         db.session.commit()
-#         send_verification_email(NVuser)
-#         flash("An email has been sent with instructions to activate your Account.", 'info') 
+#         flash("Account created for {} ! You are now able to Log in".format(form.username.data), 'success')
 #         return redirect(url_for('login'))
 #     return render_template('register.html', form= form, title= 'Register')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('home'))
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        hashed_password = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
+        NVuser = Not_Verified_User(username=form.username.data, email=form.email.data, password=hashed_password, address=form.address.data, phone_no=form.phone_no.data, last_verification_email_time=datetime.utcnow())       
+        db.session.add(NVuser)
+        db.session.commit()
+        send_verification_email(NVuser)
+        flash("An email has been sent with instructions to activate your Account.", 'info') 
+        return redirect(url_for('login'))
+    return render_template('register.html', form= form, title= 'Register')
 
 @app.route("/verify_email/<token>")
 def verify_email(token):
@@ -171,8 +171,15 @@ def account():
             ordered_item_dict = json.loads(current_user.order_json)
         except:
             pass
+
+        price = None
+        if ordered_item_dict:
+            price = 0.0
+            for key, val in ordered_item_dict.items():
+                price += Food_item.query.get(int(key)).price * val
+
     image_file = url_for('static', filename= f"profile_pics/{current_user.image_file}")
-    return render_template('account.html', title='Account', image_file=image_file, form=form, ordered_item_dict=ordered_item_dict, food_items=Food_item.query.all())
+    return render_template('account.html', title='Account', image_file=image_file, form=form, ordered_item_dict=ordered_item_dict, price=price, food_items=Food_item.query.all(), all_orders=current_user.all_orders)
 
 def send_reset_password_email(user):
     token = user.get_reset_token()
@@ -217,3 +224,45 @@ def reset_password(token):
         flash("Your password has been updated! You are now able to Log in", 'success')
         return redirect(url_for('login'))
     return render_template('reset_password.html', title="Reset Password", form=form)
+
+@app.route('/payment_options')
+@login_required
+def payment_options():
+    ordered_item_dict = None
+    try:
+        ordered_item_dict = json.loads(current_user.order_json)
+    except:
+        pass
+    total_price = None
+    if ordered_item_dict:
+        total_price = 0.0
+        for key, val in ordered_item_dict.items():
+            total_price += Food_item.query.get(int(key)).price * val
+        return render_template('payment_options.html', title='Payment',food_items=Food_item.query.all(), ordered_item_dict=ordered_item_dict, price=total_price)
+    else:
+        return redirect(url_for('home'))    
+
+@app.route('/order_confirmed')
+@login_required
+def order_confirmed():
+    ordered_item_dict = None
+    try:
+        ordered_item_dict = json.loads(current_user.order_json)
+    except:
+        pass
+    total_price = None
+    if ordered_item_dict:
+        total_price = 0.0
+        order_details = ""
+        for key, val in ordered_item_dict.items():
+            total_price += Food_item.query.get(int(key)).price * val
+            order_details += f'{Food_item.query.get(int(key)).title} : {val} \n'
+        order_details += f'Total Price: ₹ {total_price} \n'
+
+        new_order = Orders(user_id=current_user.id, order_json= current_user.order_json, order_details=order_details, price=total_price)
+        db.session.add(new_order)
+        current_user.order_json = None
+        db.session.commit()
+        return render_template('order_confirmed.html', title='Order Confirmed', price=total_price)
+    else:
+        return redirect(url_for('home'))    
