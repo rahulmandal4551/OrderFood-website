@@ -1,0 +1,9 @@
+{% extends "layout.html" %}
+{% block content %}
+    <h1>Payment Direct(UPI)</h1>
+    <p>Your Order Id is: {{ order_id }}</p>
+    <p>You can Pay us directly using UPI</p>
+    <p>Our UPI Id is: sample@upi</p>
+    <p>Please mention your Order Id as comment during UPI payment.</p>
+    <a href= {{ url_for("order_details", order_id = order_id) }}>Go to Order Details.</a>
+{% endblock content %}

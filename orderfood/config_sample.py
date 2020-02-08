@@ -18,3 +18,10 @@ class Config:
 
     MAIL_USERNAME = 'example@gmail.com' # Enter the Username of your Email account
     MAIL_PASSWORD = 'your password here' # Enter the Password of your Email account
+
+    # In this website, we have used Paytm Payment Gateway( https://developer.paytm.com/docs/v1/payment-gateway/ ). 
+    # To get the following values you should have Paytm Buisness Account. 
+    # Find your MID in your Paytm Dashboard at https://dashboard.paytm.com/next/apikeys
+    PAYTM_TEST_MERCHANT_ID = 'sample_MID'
+    # Find your Merchant Key in your Paytm Dashboard at https://dashboard.paytm.com/next/apikeys
+    PAYTM_TEST_SECRET_KEY = 'sample_secret_key'

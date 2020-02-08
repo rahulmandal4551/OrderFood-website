@@ -11,7 +11,7 @@ This is a repository for OrderFood Website made using [Flask](https://www.pallet
     ```bash
     cd OrderFood-website
     ```
-4. Create vitual environment called `env` using `virtualenv`.
+4. Create virtual environment called `env` using `virtualenv`.
     - Linux  or Mac
         ```bash
         virtualenv env
@@ -29,7 +29,7 @@ This is a repository for OrderFood Website made using [Flask](https://www.pallet
     ```
 
 ## Usage
-1. You have to **edit and provide own config values** in the [config_sample.py](orderfood/config_sample.py) file and **rename the file** as `config.py`. **Otherwise you cannot run the server** in the next step.
+1. You have to **edit and provide own config values** in the [config_sample.py](orderfood/config_sample.py) file and **rename the file** as `config.py`. **Otherwise you cannot run the server** in the next step. <br/> For Payment Gateway Integration, you should have a [Paytm Buisness Account](https://developer.paytm.com/docs/v1/payment-gateway/).  
 2. You can initialize(create) the required Database from Python shell using the command provided in [db_initialization.txt](db_initialization.txt).
 3. You can start the Flask app server by calling
    ```bash

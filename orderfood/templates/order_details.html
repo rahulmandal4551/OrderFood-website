@@ -1,0 +1,59 @@
+{% extends "layout.html" %}
+{% block content %}
+    <h1>Order Details</h1>
+    {% if order %}
+        <p>{{ order.order_details }}</p>
+        <p>Price: {{ order.price }}</p>
+    {% endif %}
+    {% if order.payment_status == 0 %}
+        {% if order.payment_method == 0 %}
+            <p> Payment Method: Not Available</p>
+        {% elif order.payment_method == 1 %}
+            <p> Payment Method: Payment Gateway</p>
+        {% elif order.payment_method == 2 %}
+            <p> Payment Method: Direct Payment (UPI)</p>
+            <p>Your Order Id is: {{ order.id }}</p>
+            <p>You can Pay us directly using UPI</p>
+            <p>Our UPI Id is: sample@upi</p>
+            <p>Please mention your Order Id as comment during UPI payment.</p>
+        {% elif order.payment_method == 3 %}
+            <p> Payment Method: Cash On Delivery</p>
+            <p>Your Order is Confirmed. You have to pay ₹ {{ order.price }} for Cash-On-Delivery .</p>
+            <p>Please wait while your Food is being prepared and delivered.</p>
+        {% endif %}
+        </p>
+        <h1>Other Payment Options</h1>
+        {% if order.payment_method != 1 %}
+            <p>Payment Gateway <a href="{{ url_for('payment_ptm') }}" class="btn btn-outline-info"> Click Here</a></p>
+        {% elif order.payment_method != 2 %}
+            <p>Direct Payment (UPI) <a href="{{ url_for('payment_direct') }}" class="btn btn-outline-info"> Click Here</a></p>
+        {% endif %}
+        {% if order.payment_method == 0 %}
+        <p>Cash On Delivery <a href="{{ url_for('payment_cod') }}" class="btn btn-outline-info"> Click Here</a> </p>
+        {% endif %}
+    {% elif order.payment_status == 1 %}   
+        <h2 class="success"> Payment Successful.</h2> 
+        <p> Payment Method:
+            {% if order.payment_method == 1 %}
+                Payment Gateway
+            {% elif order.payment_method == 2 %}
+                Direct Payment (UPI)
+            {% elif order.payment_method == 3 %}
+                Cash On Delivery
+            {% endif %}
+        </p>
+        <p>Payment Date: {{ order.date_ordered }} </p>
+    {% elif order.payment_status == 2 %}  
+        <h2 class="danger"> Payment Failed. Please Try Again.</h2>  
+        <p> Payment Method:
+            {% if order.payment_method == 1 %}
+                Payment Gateway
+            {% elif order.payment_method == 2 %}
+                Direct Payment (UPI)
+            {% elif order.payment_method == 3 %}
+                Cash On Delivery
+            {% endif %}
+        </p>
+        <p>Payment Date: {{ order.date_ordered }} </p>  
+    {% endif %}
+{% endblock content %}

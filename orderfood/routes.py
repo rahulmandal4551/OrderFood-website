@@ -1,14 +1,17 @@
 import secrets
 import os
 import json
+import requests
 from datetime import datetime
 from PIL import Image
-from flask import render_template, jsonify, url_for, flash, redirect, request
+from flask import render_template, jsonify, url_for, flash, redirect, request, abort
 from orderfood import app, db, bcrypt, mail
 from orderfood.models import User, Food_item, Not_Verified_User, Orders
 from orderfood.forms import RegistrationForm, LoginForm, UpdateAccountForm, RequestPasswordResetForm, ResetPasswordForm
 from flask_login import login_user, current_user, logout_user, login_required
+from orderfood.config import Config
 from flask_mail import Message
+from orderfood import CheckSum
 
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/home', methods=['GET', 'POST'])
@@ -62,20 +65,6 @@ If yot did not made this request then simply ignore this email.
 '''
     mail.send(msg)
 
-# @app.route('/register', methods=['GET', 'POST'])
-# def register():
-#     if current_user.is_authenticated:
-#         return redirect(url_for('home'))
-#     form = RegistrationForm()
-#     if form.validate_on_submit():
-#         hashed_password = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
-#         user = User(username=form.username.data, email=form.email.data, password=hashed_password, address=form.address.data, phone_no=form.phone_no.data, date_registered=datetime.utcnow())
-#         db.session.add(user)
-#         db.session.commit()
-#         flash("Account created for {} ! You are now able to Log in".format(form.username.data), 'success')
-#         return redirect(url_for('login'))
-#     return render_template('register.html', form= form, title= 'Register')
-
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
@@ -83,13 +72,27 @@ def register():
     form = RegistrationForm()
     if form.validate_on_submit():
         hashed_password = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
-        NVuser = Not_Verified_User(username=form.username.data, email=form.email.data, password=hashed_password, address=form.address.data, phone_no=form.phone_no.data, last_verification_email_time=datetime.utcnow())       
-        db.session.add(NVuser)
+        user = User(username=form.username.data, email=form.email.data, password=hashed_password, address=form.address.data, phone_no=form.phone_no.data, date_registered=datetime.utcnow())
+        db.session.add(user)
         db.session.commit()
-        send_verification_email(NVuser)
-        flash("An email has been sent with instructions to activate your Account.", 'info') 
+        flash("Account created for {} ! You are now able to Log in".format(form.username.data), 'success')
         return redirect(url_for('login'))
     return render_template('register.html', form= form, title= 'Register')
+
+# @app.route('/register', methods=['GET', 'POST'])
+# def register():
+#     if current_user.is_authenticated:
+#         return redirect(url_for('home'))
+#     form = RegistrationForm()
+#     if form.validate_on_submit():
+#         hashed_password = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
+#         NVuser = Not_Verified_User(username=form.username.data, email=form.email.data, password=hashed_password, address=form.address.data, phone_no=form.phone_no.data, last_verification_email_time=datetime.utcnow())       
+#         db.session.add(NVuser)
+#         db.session.commit()
+#         send_verification_email(NVuser)
+#         flash("An email has been sent with instructions to activate your Account.", 'info') 
+#         return redirect(url_for('login'))
+#     return render_template('register.html', form= form, title= 'Register')
 
 @app.route("/verify_email/<token>")
 def verify_email(token):
@@ -240,11 +243,206 @@ def payment_options():
             total_price += Food_item.query.get(int(key)).price * val
         return render_template('payment_options.html', title='Payment',food_items=Food_item.query.all(), ordered_item_dict=ordered_item_dict, price=total_price)
     else:
-        return redirect(url_for('home'))    
+        return redirect(url_for('home')) 
 
-@app.route('/order_confirmed')
+@app.route('/paytm_payment_gateway')
 @login_required
-def order_confirmed():
+def payment_ptm():
+    ordered_item_dict = None
+    try:
+        ordered_item_dict = json.loads(current_user.order_json)
+    except:
+        return redirect(url_for('home')) 
+
+    total_price = None
+    if ordered_item_dict:
+        total_price = 0.0
+        order_details = ""
+        for key, val in ordered_item_dict.items():
+            total_price += Food_item.query.get(int(key)).price * val
+            order_details += f'{Food_item.query.get(int(key)).title} : {val} \n'
+        order_details += f'Total Price: ₹ {total_price} \n'
+
+        new_order = Orders(user_id=current_user.id, order_json= current_user.order_json, order_details=order_details, price=total_price, payment_method=1, payment_status=0)
+        db.session.add(new_order)
+        current_user.order_json = None
+        db.session.commit()
+
+    # initialize dictionary with request parameters
+    paytmParams = {
+        # Find your MID in your Paytm Dashboard at https://dashboard.paytm.com/next/apikeys
+        "MID" : Config.PAYTM_TEST_MERCHANT_ID,
+        # Find your WEBSITE in your Paytm Dashboard at https://dashboard.paytm.com/next/apikeys
+        "WEBSITE" : "WEBSTAGING",
+        # Find your INDUSTRY_TYPE_ID in your Paytm Dashboard at https://dashboard.paytm.com/next/apikeys
+        "INDUSTRY_TYPE_ID" : "Retail",
+        # WEB for website and WAP for Mobile-websites or App
+        "CHANNEL_ID" : "WEB",
+        # Enter your unique order id
+        "ORDER_ID" : str(new_order.id),
+        # unique id that belongs to your customer
+        "CUST_ID" : str(current_user.id),
+        # customer's mobile number
+        "MOBILE_NO" : current_user.phone_no,
+        # customer's email
+        "EMAIL" : current_user.email,
+        # Amount in INR that is payble by customer
+        # this should be numeric with optionally having two decimal points
+        "TXN_AMOUNT" : str(new_order.price),
+        # on completion of transaction, we will send you the response on this URL
+        "CALLBACK_URL" : url_for("ptmcallback", _external=True),
+    }
+    print('paytmParams', paytmParams)
+    # Generate checksum for parameters we have
+    # Find your Merchant Key in your Paytm Dashboard at https://dashboard.paytm.com/next/apikeys
+    checksum = CheckSum.generate_checksum(paytmParams, Config.PAYTM_TEST_SECRET_KEY)
+
+    # for Staging
+    url = "https://securegw-stage.paytm.in/order/process"
+
+    # for Production
+    # url = "https://securegw.paytm.in/order/process"
+    return render_template('paytm_payment_gateway.html',url=url, paytmParams=paytmParams, checksum=checksum)
+
+@app.route('/ptmcallback', methods=['GET', 'POST'])
+@login_required
+def ptmcallback():
+    if request.method == 'POST':
+        received_data = request.form.to_dict()
+        paytmChecksum = ""
+        # Create a Dictionary from the parameters received in POST
+        # received_data should contains all data received in POST
+        paytmParams = {}
+        for key, value in received_data.items(): 
+            if key == 'CHECKSUMHASH':
+                paytmChecksum = value
+            else:
+                paytmParams[key] = value
+        print("received_data", received_data)
+        # Verify checksum
+        # Find your Merchant Key in your Paytm Dashboard at https://dashboard.paytm.com/next/apikeys 
+        isValidChecksum = CheckSum.verify_checksum(paytmParams, Config.PAYTM_TEST_SECRET_KEY, paytmChecksum)
+        new_order_id = paytmParams['ORDERID']
+        if isValidChecksum:
+            print("Checksum Matched")
+            if received_data['STATUS'] == 'TXN_FAILURE':
+                new_order = Orders.query.get(new_order_id)
+                new_order.payment_status = 2
+                new_order.payment_details = json.dumps(received_data)
+                db.session.commit()
+                print(str(received_data))
+                return redirect(url_for("order_details", order_id = new_order_id))
+            else:    
+                paytmParams = dict()
+                # Find your MID in your Paytm Dashboard at https://dashboard.paytm.com/next/apikeys
+                paytmParams["MID"] = Config.PAYTM_TEST_MERCHANT_ID
+                # Enter your order id which needs to be check status for
+                paytmParams["ORDERID"] = new_order_id
+                # Generate checksum by parameters we have
+                # Find your Merchant Key in your Paytm Dashboard at https://dashboard.paytm.com/next/apikeys 
+                checksum = CheckSum.generate_checksum(paytmParams, Config.PAYTM_TEST_SECRET_KEY)
+                # put generated checksum value here
+                paytmParams["CHECKSUMHASH"] = checksum
+                # prepare JSON string for request
+                post_data = json.dumps(paytmParams)
+
+                # for Staging
+                url = "https://securegw-stage.paytm.in/order/status"
+
+                # for Production
+                # url = "https://securegw.paytm.in/order/status"
+
+                response = requests.post(url, data = post_data, headers = {"Content-type": "application/json"}).json()            
+                print("response", response)
+                new_order = Orders.query.get(new_order_id)
+                if response['STATUS'] == 'TXN_SUCCESS':
+                    new_order.payment_status = 1
+                    new_order.payment_details = json.dumps(response)
+                    db.session.commit()
+                    print(str(received_data) + "\n*******************************\n" + str(response))
+                    return redirect(url_for("order_details", order_id = new_order_id))
+                elif response['STATUS'] == 'TXN_FAILURE':
+                    new_order.payment_status = 2
+                    new_order.payment_details = json.dumps(response)
+                    db.session.commit()
+                    print(str(received_data) + "\n*******************************\n" + str(response))
+                    return redirect(url_for("order_details", order_id = new_order_id))
+        else:
+            print("Checksum Mismatched")
+            return redirect(url_for("order_details", order_id = new_order_id))
+
+    elif request.method == 'GET':
+        return redirect(url_for('home'))
+
+@app.route('/payment_direct')
+@login_required
+def payment_direct():
+    ordered_item_dict = None
+    try:
+        ordered_item_dict = json.loads(current_user.order_json)
+    except:
+        return redirect(url_for('home')) 
+
+    total_price = None
+    if ordered_item_dict:
+        total_price = 0.0
+        order_details = ""
+        for key, val in ordered_item_dict.items():
+            total_price += Food_item.query.get(int(key)).price * val
+            order_details += f'{Food_item.query.get(int(key)).title} : {val} \n'
+        order_details += f'Total Price: ₹ {total_price} \n'
+
+        new_order = Orders(user_id=current_user.id, order_json= current_user.order_json, order_details=order_details, price=total_price, payment_method=2, payment_status=0)
+        db.session.add(new_order)
+        current_user.order_json = None
+        db.session.commit()
+    return render_template('payment_direct.html', title='Payment Direct', order_id = new_order.id)
+
+@app.route("/order_details/<order_id>" , methods=['GET', 'POST'])
+@login_required
+def order_details(order_id):
+        order = Orders.query.get_or_404(order_id)
+        if (order.user_id != current_user.id) and (not current_user.administrator_access):
+            abort(403)
+
+        # if payment method is Paytm Payment Gateway is used and payment staus is still pending, check again using Transaction API
+        if order.payment_method == 1 and order.payment_status == 0:
+            paytmParams = dict()
+            # Find your MID in your Paytm Dashboard at https://dashboard.paytm.com/next/apikeys
+            paytmParams["MID"] = Config.PAYTM_TEST_MERCHANT_ID
+            # Enter your order id which needs to be check status for
+            paytmParams["ORDERID"] = order_id
+            # Generate checksum by parameters we have
+            # Find your Merchant Key in your Paytm Dashboard at https://dashboard.paytm.com/next/apikeys 
+            checksum = CheckSum.generate_checksum(paytmParams, Config.PAYTM_TEST_SECRET_KEY)
+            # put generated checksum value here
+            paytmParams["CHECKSUMHASH"] = checksum
+            # prepare JSON string for request
+            post_data = json.dumps(paytmParams)
+
+            # for Staging
+            url = "https://securegw-stage.paytm.in/order/status"
+
+            # for Production
+            # url = "https://securegw.paytm.in/order/status"
+
+            response = requests.post(url, data = post_data, headers = {"Content-type": "application/json"}).json()            
+            print("response", response)
+            new_order = Orders.query.get(order_id)
+            if response['STATUS'] == 'TXN_SUCCESS':
+                new_order.payment_status = 1
+                new_order.payment_details = json.dumps(response)
+                db.session.commit()
+            elif response['STATUS'] == 'TXN_FAILURE':
+                new_order.payment_status = 2
+                new_order.payment_details = json.dumps(response)
+                db.session.commit()
+        
+        return render_template('order_details.html', title='Order Details', order=order)
+
+@app.route('/payment_cod')
+@login_required
+def payment_cod():
     ordered_item_dict = None
     try:
         ordered_item_dict = json.loads(current_user.order_json)
@@ -259,10 +457,10 @@ def order_confirmed():
             order_details += f'{Food_item.query.get(int(key)).title} : {val} \n'
         order_details += f'Total Price: ₹ {total_price} \n'
 
-        new_order = Orders(user_id=current_user.id, order_json= current_user.order_json, order_details=order_details, price=total_price)
+        new_order = Orders(user_id=current_user.id, order_json= current_user.order_json, order_details=order_details, price=total_price, payment_method=3, payment_status=0)
         db.session.add(new_order)
         current_user.order_json = None
         db.session.commit()
-        return render_template('order_confirmed.html', title='Order Confirmed', price=total_price)
+        return render_template('payment_cod.html', title='Payment COD', price=total_price, order_id = new_order.id)
     else:
         return redirect(url_for('home'))    

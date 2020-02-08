@@ -16,6 +16,15 @@
     tr:nth-child(even) {
       background-color: #f2f2f2;
     }
+    @media only screen and (max-width: 767px){
+        .media{
+            display: block; text-align: center;
+        }
+        .media .account-img{
+            margin: 0 auto;
+            display: block;
+        }
+    }
 </style>
 {% endblock%}
 {% block content %}
@@ -49,15 +58,43 @@
             {% if all_orders %}
                 <table>
                     <tr>
+                        <th>Order Id</th>
                         <th>Order Time</th>
                         <th>Ordered Items</th>
                         <th>Price</th>
+                        <th>Payment Method</th>
+                        <th>Payment Status</th>
                     </tr>
                     {% for i in all_orders %}
                     <tr>
+                        <td>
+                            <a href= {{ url_for("order_details", order_id = i.id) }}>
+                            {{ i.id }}
+                            </a>
+                        </td>
                         <td>{{ i.date_ordered }}</td>
                         <td>{{ i.order_details }}</td>
                         <td><span> ₹{{ i.price }}</span></td>
+                        <td>
+                            {% if i.payment_method == 0 %}
+                                Not Available
+                            {% elif i.payment_method == 1 %}
+                                Payment Gateway
+                            {% elif i.payment_method == 2 %}
+                                Direct Payment (UPI)
+                            {% elif i.payment_method == 3 %}
+                                Cash On Delivery
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if i.payment_status == 0 %}
+                                Pending
+                            {% elif i.payment_status == 1 %}
+                                Successful
+                            {% elif i.payment_status == 2 %}
+                                Failed
+                            {% endif %}
+                        </td>
                     </tr>
                 {% endfor %}
                 </table> 

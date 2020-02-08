@@ -15,11 +15,11 @@ class User(db.Model, UserMixin):
     username = db.Column(db.String(50), nullable= False)
     email = db.Column(db.String(100), unique= True, nullable= False)
     phone_no = db.Column(db.String(15), nullable=False) 
+    administrator_access = db.Column(db.Boolean, nullable= False, default= False)
     image_file = db.Column(db.String(20), nullable= False, default='default_img.jpg')
     password = db.Column(db.String(60), nullable= False)
     address = db.Column(db.Text, nullable= False)
     order_json = db.Column(db.Text, default=None)
-    administrator_access = db.Column(db.Boolean, nullable= False, default= False)
     date_registered = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     all_orders = db.relationship('Orders', backref='ordered_by', lazy=True)
 
@@ -45,23 +45,29 @@ class Food_item(db.Model):
     details = db.Column(db.Text, default=None)
     availability = db.Column(db.Integer, nullable= False, default= 0)
     price = db.Column(db.Float, nullable= False, default= 0.0)
+    current_requirement = db.Column(db.Integer, nullable= False, default=0)
 
     def __repr__(self):
-        return f"Food Item('{self.title}', '{self.price}', '{self.availability}')"
+        return f"Food Item('{self.title}', '{self.price}', 'avail:{self.availability}', 'req:{self.current_requirements}')"
 
 class Orders(db.Model):
     id = db.Column(db.Integer, primary_key= True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable= False)
-    order_json = db.Column(db.Text, default=None)
+    order_json = db.Column(db.Text, nullable=False)
     order_details = db.Column(db.Text, default=None) # for complete overview of order like- name, address of user,
                                                     #  quantity and details of food items, total price, delivery info
-    is_completed = db.Column(db.Boolean, nullable= False, default= False)
     price = db.Column(db.Float, nullable= False, default= 0.0)
+    # Payment Method options 0: Not Available, 1: Paytm Payment Gateway, 2: Direct Online(UPI), 3: COD
+    payment_method = db.Column(db.Integer, nullable= False, default= 0)
+    # Payment Status options 0: Payment Pending, 1: Payment Successful, 2: Payment Failed
+    payment_status = db.Column(db.Integer, nullable= False, default= 0)
+    payment_details = db.Column(db.Text, default=None)
+    is_completed = db.Column(db.Boolean, nullable= False, default= False)
     date_ordered = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     remarks = db.Column(db.Text, default=None)
 
     def __repr__(self):
-        return f"Order('{self.order_json}','{self.user_id}', '{self.price}','{self.date_ordered}', '{self.is_completed}')"
+        return f"Order('{self.order_json}','{self.user_id}', '{self.price}','{self.date_ordered}', '{self.payment_method}', '{self.payment_status}', '{self.is_completed}')"
 
 class Not_Verified_User(db.Model):
     id = db.Column(db.Integer, primary_key= True)
@@ -121,6 +127,14 @@ class Food_itemModelView(ModelView):
 class OrderModelView(ModelView):
     column_display_pk = True
     column_searchable_list = ('user_id', 'date_ordered', 'order_details')
+    form_choices = { 
+                    'payment_method': [('0', 'Not Available'), ('1', 'Payment Gateway(Paytm)'), ('2', 'Direct Online(UPI)'), ('3', 'COD')],
+                    'payment_status': [('0', 'Pending'), ('1', 'Successful'), ('2', 'Failed')],
+                   }
+    column_choices = {
+                        'payment_method': [(0, 'Not Available'), (1, 'Payment Gateway(Paytm)'), (2, 'Direct Online(UPI)'), (3, 'COD')], 
+                        'payment_status': [(0, 'Pending'), (1, 'Successful'), (2, 'Failed')]
+                    }
 
     def is_accessible(self):
         return (current_user.is_authenticated and current_user.administrator_access)

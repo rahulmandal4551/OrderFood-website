@@ -13,6 +13,7 @@
     {% endif %}
 
     <h1>Payment Options</h1>
-    <p>Currently we only accept pay-on-delivery Payment option. If you wished to pay online, we are sorry for your inconvenience.</p>
-    <a href="{{ url_for('order_confirmed') }}" class="btn btn-outline-info"> Confirm and Place Order</a> 
+    <p>Payment Gateway <a href="{{ url_for('payment_ptm') }}" class="btn btn-outline-info"> Click Here</a></p>
+    <p>Direct Payment (UPI) <a href="{{ url_for('payment_direct') }}" class="btn btn-outline-info"> Click Here</a></p>
+    <p>Cash On Delivery <a href="{{ url_for('payment_cod') }}" class="btn btn-outline-info"> Click Here</a> </p>
 {% endblock content %}
