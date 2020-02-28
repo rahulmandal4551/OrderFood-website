@@ -9,3 +9,6 @@ from orderfood.models import User, Food_item
 
 # For deleting all tables and record from existing Database
 db.drop_all()
+
+# In MySQL, Converting CHARACTER SET of 'orders' Table to UTF-8 so that it can contain '₹' symbol
+ALTER TABLE orders CONVERT TO CHARACTER SET utf8;

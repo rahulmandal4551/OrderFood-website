@@ -4,8 +4,12 @@ import os
 
 class Config:
     SECRET_KEY = 'secret' # Edit and Provide your own secret key
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///sample.db' # Edit and Provide your own database path
-
+    # Edit and Provide your own database path
+    # SQLALCHEMY_DATABASE_URI = 'sqlite:///sample.db' # For SQLite Database
+    SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://<USERNAME>:<PASSWORD>@localhost/<DATABASENAME>' # For MySQL database
+    # For Installation of MySQL in Ubuntu: https://www.digitalocean.com/community/tutorials/how-to-install-mysql-on-ubuntu-18-04
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    
     # Following are the values for sending emails using a Gmail account.
     # If you use other email providers, you need to change these values
     

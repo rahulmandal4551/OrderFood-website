@@ -42,7 +42,7 @@ class RegistrationForm(FlaskForm):
 class LoginForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
     password = PasswordField('Password', validators=[DataRequired(), Length(min= 4, max= 15)])
-    remember = BooleanField('Remember Me')
+    remember = BooleanField('Remember Me', default="checked")
     submit = SubmitField('Log In')
 
 class UpdateAccountForm(FlaskForm):

@@ -9,4 +9,24 @@
 <p>Go to <a href="{{ url_for('home') }}">Home</a></p>
 <p>Go to <a href="{{ url_for('account') }}">Account</a></p>
 <p>Go to <a href="{{ url_for('logout') }}">Logout</a></p>
+
+<table>
+    <tr>
+        <th>Id</th>
+        <th>Order Details</th>
+        <th>Name</th>
+        <th>Address</th>
+        <th>Payment Method</th>
+        <th>Payment Status</th>
+    </tr>
+    {% for i in orderss %}
+    <tr>
+        <td> {{ i.id }} </td>
+        <td> {{ i.order_details }}</td>
+        <td> {{ i.user_id }} </td>
+        <td>{{ i.payment_method }}</td>
+        <td>{{ i.payment_status }}</td>
+    </tr>
+    {% endfor %}
+</table>
 {% endblock %}

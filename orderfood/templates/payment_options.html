@@ -1,11 +1,13 @@
 {% extends "layout.html" %}
 {% block content %}
     <h1>Order Details</h1>
-    {% if ordered_item_dict %}
-        <p><b>Total Price: </b>₹ {{ price }}</p>
-        {% for key, val in ordered_item_dict.items() %}
-            <p><b>{{ food_items[(key|int)-1].title }} :</b> {{ val }} </p>
+    {% if order_details %}
+        <p><b>Total Price: ₹{{ price }}</b></p>
+        <p>
+        {% for i in order_details %}
+            <b>{{ i }}</b><br>
         {% endfor %}
+        </p>
         <p class="text-secondary">Want to modify your Order? <a href="{{ url_for('home') }}">Click Here</a> </p>
     {% else %}
         <p class="text-secondary">Currently your Order list is Empty!!! </p>
@@ -14,6 +16,6 @@
 
     <h1>Payment Options</h1>
     <p>Payment Gateway <a href="{{ url_for('payment_ptm') }}" class="btn btn-outline-info"> Click Here</a></p>
-    <p>Direct Payment (UPI) <a href="{{ url_for('payment_direct') }}" class="btn btn-outline-info"> Click Here</a></p>
+    {# <p>Direct Payment (UPI) <a href="{{ url_for('payment_direct') }}" class="btn btn-outline-info"> Click Here</a></p> #}
     <p>Cash On Delivery <a href="{{ url_for('payment_cod') }}" class="btn btn-outline-info"> Click Here</a> </p>
 {% endblock content %}

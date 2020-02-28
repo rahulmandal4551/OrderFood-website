@@ -151,7 +151,7 @@ class NotificationsView(BaseView):
             
     @expose('/')
     def index(self):
-        return self.render('admin/notifs.html')
+        return self.render('admin/notifs.html', orderss= Orders.query.all())
 
 admin.add_view(UserModelView(User, db.session))
 admin.add_view(Food_itemModelView(Food_item, db.session))

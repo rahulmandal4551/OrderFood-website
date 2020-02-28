@@ -2,8 +2,13 @@
 {% block content %}
     <h1>Order Details</h1>
     {% if order %}
-        <p>{{ order.order_details }}</p>
-        <p>Price: {{ order.price }}</p>
+        {% set detail = order.order_details.split(';') %}
+        <p>
+        {% for i in detail %}
+            <b>{{ i }}</b><br>
+        {% endfor %}
+        </p>
+        <p><b>Total Price: ₹{{ order.price }}</b></p>
     {% endif %}
     {% if order.payment_status == 0 %}
         {% if order.payment_method == 0 %}
@@ -22,7 +27,8 @@
             <p>Please wait while your Food is being prepared and delivered.</p>
         {% endif %}
         </p>
-        <h1>Other Payment Options</h1>
+        {#
+        <!-- <h1>Other Payment Options</h1>
         {% if order.payment_method != 1 %}
             <p>Payment Gateway <a href="{{ url_for('payment_ptm') }}" class="btn btn-outline-info"> Click Here</a></p>
         {% elif order.payment_method != 2 %}
@@ -30,10 +36,11 @@
         {% endif %}
         {% if order.payment_method == 0 %}
         <p>Cash On Delivery <a href="{{ url_for('payment_cod') }}" class="btn btn-outline-info"> Click Here</a> </p>
-        {% endif %}
+        {% endif %}  -->
+        #}
     {% elif order.payment_status == 1 %}   
         <h2 class="success"> Payment Successful.</h2> 
-        <p> Payment Method:
+        <p> <b>Payment Method:</b>
             {% if order.payment_method == 1 %}
                 Payment Gateway
             {% elif order.payment_method == 2 %}
@@ -42,10 +49,15 @@
                 Cash On Delivery
             {% endif %}
         </p>
-        <p>Payment Date: {{ order.date_ordered }} </p>
+        <p><b>Order Date:</b> {{ order.date_ordered }} </p>
+        {% if order.is_completed %}
+            <p>Your Order has been delivered. Please let us know your valuable feedback.</p>
+        {% else %}
+            <p>Please wait while your Food is being prepared and delivered.</p>
+        {% endif %}
     {% elif order.payment_status == 2 %}  
         <h2 class="danger"> Payment Failed. Please Try Again.</h2>  
-        <p> Payment Method:
+        <p><b> Payment Method:</b>
             {% if order.payment_method == 1 %}
                 Payment Gateway
             {% elif order.payment_method == 2 %}
@@ -54,6 +66,9 @@
                 Cash On Delivery
             {% endif %}
         </p>
-        <p>Payment Date: {{ order.date_ordered }} </p>  
+        <p><b>Order Date:</b> {{ order.date_ordered }} </p>  
+    {% endif %}
+    {% if order.remarks %}
+    <p>{{ order.remarks }}</p>
     {% endif %}
 {% endblock content %}

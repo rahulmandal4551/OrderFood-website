@@ -2,7 +2,8 @@ import secrets
 import os
 import json
 import requests
-from datetime import datetime
+from datetime import datetime, time
+from pytz import timezone
 from PIL import Image
 from flask import render_template, jsonify, url_for, flash, redirect, request, abort
 from orderfood import app, db, bcrypt, mail
@@ -12,6 +13,8 @@ from flask_login import login_user, current_user, logout_user, login_required
 from orderfood.config import Config
 from flask_mail import Message
 from orderfood import CheckSum
+
+India_TimeZone = timezone('Asia/Kolkata')
 
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/home', methods=['GET', 'POST'])
@@ -24,36 +27,62 @@ def home():
         return render_template('home.html', food_items=Food_item.query.all(), ordered_item_dict = ordered_item_dict )
 
     elif request.method == 'POST':
-        orderDict = request.form.to_dict()
-        if not current_user.is_authenticated:
-            flash("Please log in to submit your Order", 'info')
-            return redirect(url_for('login'))
-        # print(f"Incoming JSON data converted to Dict {orderDict}")
-        finalDict = {}
-        for i in orderDict.keys():
-            quantity = 0
-            try:
-                quantity = int(orderDict[i])
-            except:
-                quantity = int(float(orderDict[i]))
-            if quantity > 0:
-                finalDict[i.strip('qntid')] = quantity
-        # print(finalDict)
-        finalOrderJSON = json.dumps(finalDict)
-        # print(finalOrderJSON, type(finalOrderJSON))
-        current_user.order_json = finalOrderJSON if bool(finalDict) else None
-        db.session.commit()
-        flash("Your order has been updated!", 'success')
-        return redirect(url_for('account'))
+        if datetime.now(India_TimeZone).time() < time(19,30,0) and datetime.now(India_TimeZone).time() > time(15,0,0):
+            orderDict = request.form.to_dict()
+            if not current_user.is_authenticated:
+                flash("Please log in to submit your Order", 'info')
+                return redirect(url_for('login'))
+            # print(f"Incoming JSON data converted to Dict {orderDict}")
+            finalDict = {}
+            for i in orderDict.keys():
+                quantity = 0
+                try:
+                    quantity = int(orderDict[i])
+                except:
+                    quantity = int(float(orderDict[i]))
+                if quantity > 0:
+                    finalDict[i.strip('qntid')] = quantity
+            # print(finalDict)
+            finalOrderJSON = json.dumps(finalDict)
+            # print(finalOrderJSON, type(finalOrderJSON))
+            current_user.order_json = finalOrderJSON if bool(finalDict) else None
+            db.session.commit()
+            flash("Your order has been updated!", 'success')
+            return redirect(url_for('account'))
+        else:
+            flash("Order can only placed between 3 PM to 7:30 PM", 'info')
+            return redirect(url_for('home'))
 
 @app.route('/about')
 def about():
     return render_template('about.html', title= 'About')
 
+delivery_charges = 10.0
+
+def calcPriceJSON(ordered_item_dict):
+    price = None
+    if ordered_item_dict:
+        price = 0.0
+        for key, val in ordered_item_dict.items():
+            price += Food_item.query.get(int(key)).price * val
+        price += delivery_charges
+    return price
+
+def calcPriceDetailsJSON(ordered_item_dict):
+    total_price = 0.0
+    order_details = ""
+    for key, val in ordered_item_dict.items():
+        total_price += Food_item.query.get(int(key)).price * val
+        order_details += f'{Food_item.query.get(int(key)).title} : {val} ; '
+
+    total_price += delivery_charges
+    order_details += f'Delivery Charges : ₹{delivery_charges} \n'
+    return total_price, order_details
+
 def send_verification_email(user):
     token = user.get_email_verify_token()
     msg = Message('OrderFood Account Email Verification', 
-                    sender='noreply@demo.com', 
+                    sender=('OrderFood', Config.MAIL_USERNAME), 
                     recipients=[user.email])
 
     msg.body = f'''To activate your OrderFood account, please visit the following Link:
@@ -170,24 +199,22 @@ def account():
         form.address.data = current_user.address
         
         ordered_item_dict = None
+        price = None
+        order_details = None
         try:
             ordered_item_dict = json.loads(current_user.order_json)
+            price, order_details = calcPriceDetailsJSON(ordered_item_dict)
+            order_details = order_details.split(';')
         except:
             pass
 
-        price = None
-        if ordered_item_dict:
-            price = 0.0
-            for key, val in ordered_item_dict.items():
-                price += Food_item.query.get(int(key)).price * val
-
     image_file = url_for('static', filename= f"profile_pics/{current_user.image_file}")
-    return render_template('account.html', title='Account', image_file=image_file, form=form, ordered_item_dict=ordered_item_dict, price=price, food_items=Food_item.query.all(), all_orders=current_user.all_orders)
+    return render_template('account.html', title='Account', image_file=image_file, form=form, price=price, order_details=order_details , all_orders=current_user.all_orders)
 
 def send_reset_password_email(user):
     token = user.get_reset_token()
     msg = Message('OrderFood Password Reset Request', 
-                    sender='noreply@demo.com', 
+                    sender=('OrderFood',Config.MAIL_USERNAME), 
                     recipients=[user.email])
 
     msg.body = f'''To Reset your password of your OrderFood account, please visit the following Link:
@@ -231,19 +258,24 @@ def reset_password(token):
 @app.route('/payment_options')
 @login_required
 def payment_options():
-    ordered_item_dict = None
-    try:
-        ordered_item_dict = json.loads(current_user.order_json)
-    except:
-        pass
-    total_price = None
-    if ordered_item_dict:
-        total_price = 0.0
-        for key, val in ordered_item_dict.items():
-            total_price += Food_item.query.get(int(key)).price * val
-        return render_template('payment_options.html', title='Payment',food_items=Food_item.query.all(), ordered_item_dict=ordered_item_dict, price=total_price)
+    if datetime.now(India_TimeZone).time() < time(19,30,0) and datetime.now(India_TimeZone).time() > time(15,0,0):
+        ordered_item_dict = None
+        price = None
+        order_details = None
+        try:
+            ordered_item_dict = json.loads(current_user.order_json)
+            price, order_details = calcPriceDetailsJSON(ordered_item_dict)
+            order_details = order_details.split(';')
+        except:
+            pass
+
+        if ordered_item_dict:
+            return render_template('payment_options.html', title='Payment Options', order_details=order_details, price= price)
+        else:
+            return redirect(url_for('home')) 
     else:
-        return redirect(url_for('home')) 
+            flash("Order can only placed between 3 PM to 7:30 PM", 'info')
+            return redirect(url_for('home'))
 
 @app.route('/paytm_payment_gateway')
 @login_required
@@ -256,14 +288,9 @@ def payment_ptm():
 
     total_price = None
     if ordered_item_dict:
-        total_price = 0.0
-        order_details = ""
-        for key, val in ordered_item_dict.items():
-            total_price += Food_item.query.get(int(key)).price * val
-            order_details += f'{Food_item.query.get(int(key)).title} : {val} \n'
-        order_details += f'Total Price: ₹ {total_price} \n'
+        total_price, order_details = calcPriceDetailsJSON(ordered_item_dict)
 
-        new_order = Orders(user_id=current_user.id, order_json= current_user.order_json, order_details=order_details, price=total_price, payment_method=1, payment_status=0)
+        new_order = Orders(user_id=current_user.id, order_json= current_user.order_json, order_details=order_details, price=total_price, payment_method=1, payment_status=0, date_ordered= datetime.now(India_TimeZone))
         db.session.add(new_order)
         current_user.order_json = None
         db.session.commit()
@@ -374,29 +401,24 @@ def ptmcallback():
     elif request.method == 'GET':
         return redirect(url_for('home'))
 
-@app.route('/payment_direct')
-@login_required
-def payment_direct():
-    ordered_item_dict = None
-    try:
-        ordered_item_dict = json.loads(current_user.order_json)
-    except:
-        return redirect(url_for('home')) 
+# @app.route('/payment_direct')
+# @login_required
+# def payment_direct():
+#     ordered_item_dict = None
+#     try:
+#         ordered_item_dict = json.loads(current_user.order_json)
+#     except:
+#         return redirect(url_for('home')) 
 
-    total_price = None
-    if ordered_item_dict:
-        total_price = 0.0
-        order_details = ""
-        for key, val in ordered_item_dict.items():
-            total_price += Food_item.query.get(int(key)).price * val
-            order_details += f'{Food_item.query.get(int(key)).title} : {val} \n'
-        order_details += f'Total Price: ₹ {total_price} \n'
-
-        new_order = Orders(user_id=current_user.id, order_json= current_user.order_json, order_details=order_details, price=total_price, payment_method=2, payment_status=0)
-        db.session.add(new_order)
-        current_user.order_json = None
-        db.session.commit()
-    return render_template('payment_direct.html', title='Payment Direct', order_id = new_order.id)
+#     total_price = None
+#     if ordered_item_dict:
+#         total_price, order_details = calcPriceDetailsJSON(ordered_item_dict)
+#         # print(order_details)
+#         new_order = Orders(user_id=current_user.id, order_json= current_user.order_json, order_details=order_details, price=total_price, payment_method=2, payment_status=0, date_ordered= datetime.now(India_TimeZone))
+#         db.session.add(new_order)
+#         current_user.order_json = None
+#         db.session.commit()
+#     return render_template('payment_direct.html', title='Payment Direct', order_id = new_order.id)
 
 @app.route("/order_details/<order_id>" , methods=['GET', 'POST'])
 @login_required
@@ -450,14 +472,9 @@ def payment_cod():
         pass
     total_price = None
     if ordered_item_dict:
-        total_price = 0.0
-        order_details = ""
-        for key, val in ordered_item_dict.items():
-            total_price += Food_item.query.get(int(key)).price * val
-            order_details += f'{Food_item.query.get(int(key)).title} : {val} \n'
-        order_details += f'Total Price: ₹ {total_price} \n'
+        total_price, order_details = calcPriceDetailsJSON(ordered_item_dict)
 
-        new_order = Orders(user_id=current_user.id, order_json= current_user.order_json, order_details=order_details, price=total_price, payment_method=3, payment_status=0)
+        new_order = Orders(user_id=current_user.id, order_json= current_user.order_json, order_details=order_details, price=total_price, payment_method=3, payment_status=0, date_ordered= datetime.now(India_TimeZone))
         db.session.add(new_order)
         current_user.order_json = None
         db.session.commit()
